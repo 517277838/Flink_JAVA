@@ -38,6 +38,7 @@ public class WordCount4 {
 
 
         //TODO 3.数据转换，实现业务
+        // 使用labmd方式，需要给指定类型
         DataStream <Tuple2<String, Integer>> result = lines.flatMap(
                 (String value,Collector<Tuple2<String,Integer>> out ) -> {
                     for (String word : value.split(" ")) {
