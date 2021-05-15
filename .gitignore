@@ -1,0 +1,11 @@
+.svn/
+.classpath
+.settings/
+.project
+*.jar
+*/.DS_Store
+*.conf
+.idea
+out/
+target/
+metastore_db/
