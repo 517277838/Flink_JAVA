@@ -11,6 +11,7 @@ package andy.flink.source;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -75,6 +76,11 @@ public class SourceCustomer {
                 int money = random.nextInt(101);
                 long createTime = System.currentTimeMillis();
                 ctx.collect(new Order(oid,userId,money,createTime));
+                //then money eq 100 change flag to flase
+                if(money==100){
+                    System.out.println("money is 100 exit");
+                    flag = false;
+                }
                 Thread.sleep(1000);
             }
 
@@ -82,10 +88,21 @@ public class SourceCustomer {
 
         @Override
         public void cancel() {
+            System.out.println("cancel the task");
             flag = false;
 
         }
-    }
+
+            @Override
+            public void open(Configuration parameters) throws Exception {
+                System.out.println("init only exe one times");
+            }
+
+            @Override
+            public void close() throws Exception {
+                System.out.println("exe then the task finsh");
+            }
+        }
 
 
 }
