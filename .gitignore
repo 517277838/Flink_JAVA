@@ -9,3 +9,4 @@
 out/
 target/
 metastore_db/
+pom.xml
