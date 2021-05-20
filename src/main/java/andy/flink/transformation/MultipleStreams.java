@@ -1,7 +1,6 @@
 package andy.flink.transformation;
 
 import andy.flink.beans.SensorReading;
-import com.ibm.icu.util.Output;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -15,8 +14,7 @@ import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
-import org.apache.thrift.TBase;
-import org.apache.thrift.TException;
+
 
 public class MultipleStreams {
 
@@ -31,8 +29,6 @@ public class MultipleStreams {
 
         env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
 
-        //TODO 2.获取数据源
-
         //TODO 2.获取sock数据源
 
         DataStream<String> socketDS = env.socketTextStream("localhost", 7777);
@@ -45,8 +41,6 @@ public class MultipleStreams {
                 String id = value.split(",")[0];
                 String timestamp = value.split(",")[1];
                 String temperature = value.split(",")[2];
-
-
                 return new SensorReading(id, Long.valueOf(timestamp), Double.valueOf(temperature));
             }
         });
@@ -57,7 +51,6 @@ public class MultipleStreams {
         //获取不同标签的流
         DataStream<SensorReading> hightStream = resultStream.getSideOutput(hightTag);
         DataStream<SensorReading> lowerStream = resultStream.getSideOutput(lowerTag);
-
 
         //合并流
         // 2. 合流 connect，将高温流转换成二元组类型，与低温流连接合并之后，输出状态信息
@@ -87,9 +80,6 @@ public class MultipleStreams {
 
 
     public static class Silde extends ProcessFunction<SensorReading,SensorReading>{
-
-
-
         @Override
         public void processElement(SensorReading value, Context ctx, Collector<SensorReading> out) throws Exception {
 

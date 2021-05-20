@@ -8,6 +8,8 @@
     <artifactId>Flink_JAVA</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <!--aa-->
+
     <properties>
         <encoding>UTF-8</encoding>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
