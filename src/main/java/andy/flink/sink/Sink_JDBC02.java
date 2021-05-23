@@ -7,6 +7,7 @@ import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
 import org.apache.flink.connector.jdbc.JdbcSink;
 import org.apache.flink.connector.jdbc.JdbcStatementBuilder;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.sql.PreparedStatement;
@@ -24,11 +25,14 @@ public class Sink_JDBC02 {
 
         //TODO 2.获取sock数据源
 
-        DataStream<String> socketDS = env.socketTextStream("localhost", 7777);
+        DataStream<String> sourceStream = env.socketTextStream("localhost", 7777);
 
 
+       // DataStreamSource<String> sourceStream = env.readTextFile("/Users/lichao/Documents/work/develop/workspace/javaProject/Flink_JAVA/src/main/java/andy/flink/data/sensor.txt");
+
+        String sql = "insert into sensor(id, times, temperature) values(?, ?, ?)";
         //封装为对象流
-        DataStream<SensorReading> SensorStream = socketDS.map(new MapFunction<String, SensorReading>() {
+        DataStream<SensorReading> SensorStream = sourceStream.map(new MapFunction<String, SensorReading>() {
             @Override
             public SensorReading map(String value) throws Exception {
                 String id = value.split(",")[0];
@@ -42,8 +46,9 @@ public class Sink_JDBC02 {
 
 
         //TODO
+
         SensorStream.addSink(JdbcSink.sink(
-                "insert into sensor (id, times,temperature) values (?, ?,?)",
+                sql,
 
         new MyJdbcStatementBuilder(), new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
                         .withUrl("jdbc:mysql://192.168.0.33:3306/study")
@@ -52,6 +57,26 @@ public class Sink_JDBC02 {
                         .withPassword("andy520").build()
         ));
 
+
+
+
+        SensorStream.printToErr("SensorStream");
+        /**
+        SensorStream
+                .addSink(JdbcSink.sink(
+                sql,
+                (ps, value) -> {
+                    ps.setString(1, value.getId());
+                    ps.setString(2, value.getTimestamp().toString());
+                    ps.setDouble(3, value.getTemperature());
+                },
+                new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
+                        .withUrl("jdbc:mysql://192.168.0.33:3306/study")
+                        .withUsername("root")
+                        .withPassword("andy520")
+                        .withDriverName("com.mysql.jdbc.Driver")
+                        .build()));
+         **/
 
         env.execute();
     }
@@ -63,7 +88,6 @@ public class Sink_JDBC02 {
             preparedStatement.setString(1, sensorReading.getId());
             preparedStatement.setString(2, sensorReading.getTimestamp().toString());
             preparedStatement.setDouble(3, sensorReading.getTemperature());
-            preparedStatement.execute();
         }
     }
 }
