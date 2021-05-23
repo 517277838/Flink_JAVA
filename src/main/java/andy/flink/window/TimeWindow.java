@@ -66,7 +66,7 @@ public class TimeWindow {
                     }
                 });
 
-        resultStream.printToErr("windown  process");
+        resultStream.printToErr("windown process!!!");
 
 
         env.execute();
