@@ -4,14 +4,17 @@ import andy.flink.beans.SensorReading;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.scala.OutputTag;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.Window;
 
-public class TimeWindow {
+public class TimeWindowDemo extends Window {
     public static void main(String[] args) throws Exception {
         //TODO 1.创建环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -68,7 +71,24 @@ public class TimeWindow {
 
         resultStream.printToErr("local windown process !!!");
 
+        //开一个15秒窗口，如果超过15秒，在等1分钟，如果超过1分钟的延迟设置，就输入到侧输出流里
+        OutputTag<SensorReading> outputTag = new OutputTag<SensorReading>("late", TypeInformation.of(SensorReading.class)) {
+        };
+
+        SingleOutputStreamOperator<SensorReading> lateStream = SensorStream.keyBy("id")
+                .window(TumblingProcessingTimeWindows.of(Time.seconds(10)))//1.12后版本的调用方式
+                .allowedLateness(Time.minutes(1))
+                .sideOutputLateData(outputTag)
+                .sum("temperature");
+
+
+        lateStream.printToErr("late window process!!!");
 
         env.execute();
+    }
+
+    @Override
+    public long maxTimestamp() {
+        return 0;
     }
 }

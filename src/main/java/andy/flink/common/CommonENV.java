@@ -26,7 +26,7 @@ public class CommonENV {
 
 
         //封装为对象流
-        DataStream<SensorReading> SensorStream = socketDS.map(new MapFunction<String, SensorReading>() {
+        DataStream<SensorReading> sensorStream = socketDS.map(new MapFunction<String, SensorReading>() {
             @Override
             public SensorReading map(String value) throws Exception {
                 String id = value.split(",")[0];
