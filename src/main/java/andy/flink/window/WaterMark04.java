@@ -2,10 +2,10 @@ package andy.flink.window;
 
 import andy.flink.beans.SensorReading;
 import org.apache.flink.api.common.RuntimeExecutionMode;
-import org.apache.flink.api.common.eventtime.*;
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -20,7 +20,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 
-public class WaterMark02 {
+//为事件窗口，设置watermark
+public class WaterMark04 {
     public static void main(String[] args) throws Exception {
         //TODO 1.创建环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -61,49 +62,38 @@ public class WaterMark02 {
             }
         };
 
-        SingleOutputStreamOperator<SensorReading> resultStream = sensorStream.assignTimestampsAndWatermarks(new WatermarkStrategy<SensorReading>() {
+        SingleOutputStreamOperator<SensorReading> watermarkStream = sensorStream.assignTimestampsAndWatermarks(
+                WatermarkStrategy.<SensorReading>forBoundedOutOfOrderness(Duration.ofSeconds(3)).withTimestampAssigner(timestampAssigner));
+
+        SingleOutputStreamOperator<Tuple2<String, Integer>> waterStream = watermarkStream.flatMap(new FlatMapFunction<SensorReading, Tuple2<String, Integer>>() {
             @Override
-            public WatermarkGenerator<SensorReading> createWatermarkGenerator(WatermarkGeneratorSupplier.Context context) {
-                return new WatermarkGenerator<SensorReading>() {
-                    private long maxTimesStamp = Long.MIN_VALUE;
+            public void flatMap(SensorReading value, Collector<Tuple2<String, Integer>> out) throws Exception {
 
-                    // 每来一条数据，将这条数据与maxTimesStamp比较，看是否需要更新watermark
-                    @Override
-                    public void onEvent(SensorReading event, long eventTimestamp, WatermarkOutput output) {
-                        maxTimesStamp = Math.max(event.getTimestamp() * 1000L, maxTimesStamp);
-
-                    }
-
-                    // 周期性更新watermark
-                    @Override
-                    public void onPeriodicEmit(WatermarkOutput output) {
-                        // 允许乱序数据的最大限度为3s
-                        long maxOutOfOrderness = 3000L;
-                        output.emitWatermark(new Watermark(maxTimesStamp - maxOutOfOrderness));
-
-                    }
-                };
+                out.collect(new Tuple2<>(value.getId(), 1));
             }
+        })
+    .keyBy(data -> data.f0)
+    .window(TumblingEventTimeWindows.of(Time.seconds(15)))//窗口大小
+    .apply(new WindowFunction<Tuple2<String, Integer>, Tuple2<String, Integer>, String, TimeWindow>() {
+        @Override
+        public void apply(String s, TimeWindow window, Iterable<Tuple2<String, Integer>> input, Collector<Tuple2<String, Integer>> out) throws Exception {
+            System.out.println("window: [ " + window.getStart() + " - " + window.getEnd() + "]");
+//            ArrayList<SensorReading> list = new ArrayList<>((Collection<? extends SensorReading>) input);
+             int count = 0;
+
+            while (input.iterator().hasNext()) {
+                count++;
+            }
+
+            System.out.println(input.iterator().next().f0+" "+count);
+
+            out.collect(Tuple2.of(input.iterator().next().f0, count));
+
         }
-                //设置事件事件
-                .withTimestampAssigner((element, recordTimestamp) -> element.getTimestamp()* 1000L))
-                .keyBy("id")
-                // 创建长度为15s的事件时间窗口
-                .window(TumblingEventTimeWindows.of(Time.seconds(15)))//窗口大小
-                .apply(new WindowFunction<SensorReading, SensorReading, Tuple, TimeWindow>() {
-                    @Override
-                    public void apply(Tuple tuple, TimeWindow window, Iterable<SensorReading> input, Collector<SensorReading> out) throws Exception {
-                        System.out.println("window: [ " + window.getStart() + " - " + window.getEnd() + "]");
-                        ArrayList<SensorReading> list = new ArrayList<>((Collection<? extends SensorReading>) input);
-
-                        list.forEach(out::collect);
-
-                    }
-                });
+    });
 
 
-        sensorStream.printToErr("sensorStream");
-        resultStream.printToErr("waterStream");
+        waterStream.printToErr("waterStream");
 
 
         env.execute();
