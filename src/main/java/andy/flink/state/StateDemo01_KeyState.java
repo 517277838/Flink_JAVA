@@ -54,19 +54,19 @@ public class StateDemo01_KeyState {
         maxbyStream.printToErr("max by");
 
         //学习时可以使用KeyState中的ValueState来实现maxBy的底层
-        sensorStream.keyBy(new KeySelector<SensorReading, String>() {
+        SingleOutputStreamOperator<Tuple2<String, Long>> maxValueStateStream = sensorStream.keyBy(new KeySelector<SensorReading, String>() {
             @Override
             public String getKey(SensorReading sensorReading) throws Exception {
                 return sensorReading.getId();
             }
-        }).map(new RichMapFunction<SensorReading, Tuple2<String,Integer>>() {
-           //声明状态
+        }).map(new RichMapFunction<SensorReading, Tuple2<String, Long>>() {
+            //声明状态
             //-1.定义一个状态用来存放最大值
             private ValueState<Long> maxValueState;
 
             @Override
             public void open(Configuration parameters) throws Exception {
-               //在open方法里初始化状态
+                //在open方法里初始化状态
                 ValueStateDescriptor<Long> stateDescriptor = new ValueStateDescriptor<>("maxValueState", Long.class);
                 //根据状态描述器获取/初始化状态
                 maxValueState = getRuntimeContext().getState(stateDescriptor);
@@ -74,13 +74,18 @@ public class StateDemo01_KeyState {
             }
 
             @Override
-            public Tuple2<String, Integer> map(SensorReading sensorReading) throws Exception {
-                    Long currentValue = sensorReading.getTimestamp();
+            public Tuple2<String, Long> map(SensorReading sensorReading) throws Exception {
+                Long currentValue = sensorReading.getTimestamp();
                 //获取状态
-                   Long historyValue = maxValueState.value();
+                Long historyValue = maxValueState.value();
+                if (historyValue == null || currentValue > historyValue) {
+                    historyValue = currentValue;
+                    maxValueState.update(historyValue);
+                    return Tuple2.of(sensorReading.getId(), historyValue);
+                } else {
+                    return Tuple2.of(sensorReading.getId(), historyValue);
+                }
 
-
-                return null;
             }
 
             @Override
@@ -88,6 +93,8 @@ public class StateDemo01_KeyState {
                 super.close();
             }
         });
+
+        maxValueStateStream.printToErr("maxValueStateStream");
 
 
         env.execute();
